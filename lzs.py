@@ -1,13 +1,14 @@
+#!/usr/bin/env python3
+
 import struct
 import array
+import argparse
+import sys
 
-def deflate(path, length_min=3):
-    f = open(path, "rb")
-    buffer = f.read()
-    f.close()
+def inflate(buffer, length_min=3):
     (size,) = struct.unpack_from("<I", buffer, 0)
     if size + 4 != len(buffer):
-        raise Exception()
+        raise Exception('size ({}) exceeds length of buffer ({})'.format(size, len(buffer)))
     input_buffer = array.array('B', buffer)
     output_buffer = array.array('B')
     input_offset = 4
@@ -36,4 +37,14 @@ def deflate(path, length_min=3):
                 rofs += 1
         cmd >>= 1
         bit -= 1
-    return bytes(output_buffer)
+    return bytearray(output_buffer)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('lzs')
+    parser.add_argument('-o', '--output', action='store', dest='output')
+    args = parser.parse_args()
+    if args.output is None:
+        sys.stdout.buffer.write(inflate(sys.stdin.buffer.read()))
+    else:
+        with open(args.output, 'wb') as f:
+            f.write(inflate(sys.stdin.buffer.read()))
