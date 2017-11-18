@@ -5,39 +5,38 @@ import array
 import argparse
 import sys
 
-def inflate(buffer, length_min=3):
-    (size,) = struct.unpack_from("<I", buffer, 0)
-    if size + 4 != len(buffer):
-        raise Exception('size ({}) exceeds length of buffer ({})'.format(size, len(buffer)))
-    input_buffer = array.array('B', buffer)
-    output_buffer = array.array('B')
-    input_offset = 4
+def inflate(buffer, offset=0, length_min=3):
+    (size,) = struct.unpack_from("I", buffer, offset)
+    end = offset + size + 4
+    offset += 4
+    output = bytearray()
     cmd = 0
     bit = 0
-    while input_offset < len(input_buffer):
+    while offset <= end:
         if bit == 0:
-            cmd = input_buffer[input_offset]
+            cmd = buffer[offset]
             bit = 8
-            input_offset += 1
+            offset += 1
         if cmd & 1:
-            output_buffer.append(input_buffer[input_offset])
-            input_offset += 1
+            output.append(buffer[offset])
+            offset += 1
         else:
-            a = input_buffer[input_offset]
-            b = input_buffer[input_offset + 1]
-            input_offset += 2
+            a = buffer[offset]
+            b = buffer[offset + 1]
+            offset += 2
             o = a | ((b & 0xf0) << 4)
             l = (b & 0xf) + length_min
-            rofs = len(output_buffer) - ((len(output_buffer) - 18 - o) & 0xfff)
+            raw_ofs = len(output) - ((len(output) - 18 - o) & 0xfff)
             for j in range(l):
-                if rofs < 0:
-                    output_buffer.append(0)
+                if raw_ofs < 0:
+                    output.append(0)
                 else:
-                    output_buffer.append(output_buffer[rofs])
-                rofs += 1
+                    # TODO: repeated run logic got lost?
+                    output.append(output[raw_ofs])
+                    raw_ofs += 1
         cmd >>= 1
         bit -= 1
-    return bytearray(output_buffer)
+    return output
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('lzs')
